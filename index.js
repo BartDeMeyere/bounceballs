@@ -6,27 +6,43 @@ canvas.height = innerHeight * devicePixelRatio
 
 var size = 100
 var balls = []
-var trails = []
+var numballs = 3
+var mouse = {x:undefined,y:undefined}
+var dx , dy , draggedball
+var springlen = 400
+var spring = .03
+var friction = .9
 
-balls.push(new Ball(canvas.width/2 , canvas.height/2 , size , size , "white"))
+CreateBalls()
 
-FadeParticles()
+function CreateBalls(){
 
-function FadeParticles(){
+    for(var i = 0 ; i < numballs ; i++){
 
-    balls.forEach(ball => {
+        var x = Math.random() * canvas.width 
+        var y = Math.random() * canvas.height
+        balls.push(new Ball(x ,y , size , size , "white"))
 
-        for(var i = 0 ; i < ball.particles.length ; i++){
+    }
+}
 
-            if(ball.particles[i].opacity === 0){
+function SpringTo(ballA , ballB){
 
-                ball.particles.splice(i,1)
-            }
-        }
-    })
+    var dx = ballB.x - ballA.x
+    var dy = ballB.y - ballA.y 
+    var angle = Math.atan2(dy,dx)
+    
+    var tx = ballB.x - springlen * Math.cos(angle)
+    var ty = ballB.y - springlen * Math.sin(angle)
 
-    setTimeout(FadeParticles , 100)
+    ballA.velocity.x += (tx - ballA.x) * spring
+    ballA.velocity.y += (ty - ballA.y) * spring
 
+    ballA.velocity.x *= friction
+    ballA.velocity.y *= friction
+
+    ballA.x += ballA.velocity.x 
+    ballA.y += ballA.velocity.y
 }
 
 
@@ -36,37 +52,87 @@ function renderContent(){
 
     balls.forEach(ball => {
 
-        //draw particles
-        for(var i = 0 ; i < ball.particles.length ; i++){
-
-            ball.particles[i].render()
-        }
-
-        if(Math.abs(ball.endsizeX - ball.currentsizeX) < .01 && Math.abs(ball.endsizeY - ball.currentsizeY) < .01){
-
-            ball.finished = true
-            ball.currentsizeX = ball.endsizeX 
-            ball.currentsizeY = ball.endsizeY
-        }
-
         ball.draw()
+        ball.update()
 
-        if(ball.finished){
-
-            ball.movedown()
-
-
-        }else{
-
-            ball.update()
-            
-        }
-
+    
     })
+
+    for(var i = 0 ; i < balls.length ; i++){
+
+        if(!balls[i].isDragging){
+
+            for(var j = 0 ; j < balls.length ; j++){
+
+                if(j !== i){
+
+                    SpringTo(balls[i] , balls[j])
+                }
+            }
+
+           
+        }
+    }
+    
+    c.beginPath()
+    c.strokeStyle = "white"
+    c.moveTo(balls[0].x , balls[0].y)
+
+    for(var i = 0 ; i < balls.length ; i++){
+
+        c.lineTo(balls[i].x, balls[i].y)
+    }
+
+    c.lineTo(balls[0].x, balls[0].y)
+
+    c.stroke()
+    c.closePath()
 
     requestAnimationFrame(renderContent)
       
 }
+
+$("canvas").on("mousedown" , () => {
+
+    balls.forEach(ball => {
+
+        if(ball.isInside(mouse.x , mouse.y)){
+
+            dx = ball.x - mouse.x 
+            dy = ball.y - mouse.y
+            draggedball = ball
+            ball.isDragging = true
+            return
+        }
+    })
+
+})
+
+$("canvas").on("mousemove" , (e) => {
+
+    mouse.x = e.clientX * devicePixelRatio
+    mouse.y = e.clientY * devicePixelRatio
+
+    if(draggedball){
+
+        draggedball.x = mouse.x + dx 
+        draggedball.y = mouse.y + dy
+
+        console.log(draggedball)
+    }
+
+})
+
+$("canvas").on("mouseup" , (e) => {
+
+    if(draggedball){
+
+        draggedball.isDragging = false
+        draggedball = undefined
+    }
+
+
+})
 
 renderContent()
 
